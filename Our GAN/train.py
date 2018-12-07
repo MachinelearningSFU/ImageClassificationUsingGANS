@@ -1,8 +1,9 @@
 # -*- coding:utf-8 -*-
-from __future__ import print_function
+# from __future__ import print_function
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
+from torchvision.utils import save_image
 from util import log_sum_exp
 from torch.utils.data import DataLoader, TensorDataset
 import sys
@@ -13,15 +14,21 @@ import pdb
 # import tensorboardX
 import os
 
+#
+
 
 class ImprovedGAN(object):
     def __init__(self, G, D, labeled, unlabeled, test, args):
-
-        # os.makedirs(args.savedir)
-        self.G = G
-        self.D = D
-        torch.save(self.G, os.path.join(args.savedir, 'G.pkl'))
-        torch.save(self.D, os.path.join(args.savedir, 'D.pkl'))
+        if os.path.exists(args.savedir):
+            print('Loading model from ' + args.savedir)
+            self.G = torch.load(os.path.join(args.savedir, 'G.pkl'))
+            self.D = torch.load(os.path.join(args.savedir, 'D.pkl'))
+        else:
+            os.makedirs(args.savedir)
+            self.G = G
+            self.D = D
+            torch.save(self.G, os.path.join(args.savedir, 'G.pkl'))
+            torch.save(self.D, os.path.join(args.savedir, 'D.pkl'))
         # self.writer = tensorboardX.SummaryWriter(log_dir=args.logdir)
         if args.cuda:
             self.G.cuda()
@@ -68,7 +75,7 @@ class ImprovedGAN(object):
         self.Doptim.zero_grad()
         loss.backward()
         self.Goptim.step()
-        return loss.data.cpu().numpy()
+        return loss.data.cpu().numpy(),fake
 
     def train(self):
         assert type(self.labeled) == TensorDataset
@@ -95,10 +102,11 @@ class ImprovedGAN(object):
                 loss_supervised += ll
                 loss_unsupervised += lu
                 accuracy += acc
-                lg = self.trainG(unlabel2)
+                lg,gen_imgs = self.trainG(unlabel2)
                 if epoch > 1 and lg > 1:
                     #                    pdb.set_trace()
-                    lg = self.trainG(unlabel2)
+                    lg, gen_imgs = self.trainG(unlabel2)
+
                 loss_gen += lg
                 if (batch_num + 1) % self.args.log_interval == 0:
                     print('Training: %d / %d' % (batch_num + 1, len(unlabel_loader1)))
@@ -127,10 +135,10 @@ class ImprovedGAN(object):
                 print("Eval: correct %d / %d" % (self.eval(), self.test.__len__()))
                 torch.save(self.G, os.path.join(args.savedir, 'G.pkl'))
                 torch.save(self.D, os.path.join(args.savedir, 'D.pkl'))
+                save_image(gen_imgs.data[:25], 'images/%d.png' % epoch, nrow=5)
 
     def predict(self, x):
-        with torch.no_grad:
-            output = torch.max(self.D(Variable(x), cuda=self.args.cuda), 1)[1].data
+        output = torch.max(self.D(Variable(x), cuda=self.args.cuda), 1)[1].data
         return output
 
     def eval(self):
@@ -156,7 +164,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Improved GAN')
     parser.add_argument('--batch-size', type=int, default=100, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs', type=int, default=20, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.003, metavar='LR',
                         help='learning rate (default: 0.003)')

@@ -7,8 +7,10 @@ import pdb
 from util import reset_normal_param, LinearWeightNorm
 
 
+#Network strucure built in reference with "IMproved GAN" OPEN AI paper https://github.com/openai/improved-gan.git
+
 class Discriminator(nn.Module):
-    def __init__(self, input_dim = 28 ** 2, output_dim = 10):
+    def __init__(self, input_dim=28 ** 2, output_dim=10):
         super(Discriminator, self).__init__()
         self.input_dim = input_dim
         self.layers = torch.nn.ModuleList([
@@ -19,45 +21,47 @@ class Discriminator(nn.Module):
             LinearWeightNorm(250, 250)]
         )
         self.final = LinearWeightNorm(250, output_dim, weight_scale=1)
-        #for layer in self.layers:
+        # for layer in self.layers:
         #    reset_normal_param(layer, 0.1)
-        #reset_normal_param(self.final, 0.1, 5)
-    def forward(self, x, feature = False, cuda = False):
+        # reset_normal_param(self.final, 0.1, 5)
+
+    def forward(self, x, feature=False, cuda=False):
         x = x.view(-1, self.input_dim)
         noise = torch.randn(x.size()) * 0.3 if self.training else torch.Tensor([0])
         if cuda:
             noise = noise.cuda()
-        x = x + Variable(noise, requires_grad = False)
+        x = x + Variable(noise, requires_grad=False)
         for i in range(len(self.layers)):
             m = self.layers[i]
             x_f = F.relu(m(x))
             noise = torch.randn(x_f.size()) * 0.5 if self.training else torch.Tensor([0])
             if cuda:
                 noise = noise.cuda()
-            x = (x_f + Variable(noise, requires_grad = False))
+            x = (x_f + Variable(noise, requires_grad=False))
         if feature:
             return x_f, self.final(x)
         return self.final(x)
 
 
 class Generator(nn.Module):
-    def __init__(self, z_dim, output_dim = 28 ** 2):
+    def __init__(self, z_dim, output_dim=28 ** 2):
         super(Generator, self).__init__()
         self.z_dim = z_dim
-        self.fc1 = nn.Linear(z_dim, 500, bias = False)
-        self.bn1 = nn.BatchNorm1d(500, affine = False, eps=1e-6, momentum = 0.5)
-        self.fc2 = nn.Linear(500, 500, bias = False)
-        self.bn2 = nn.BatchNorm1d(500, affine = False, eps=1e-6, momentum = 0.5)
-        self.fc3 = LinearWeightNorm(500, output_dim, weight_scale = 1)
+        self.fc1 = nn.Linear(z_dim, 500, bias=False)
+        self.bn1 = nn.BatchNorm1d(500, affine=False, eps=1e-6, momentum=0.5)
+        self.fc2 = nn.Linear(500, 500, bias=False)
+        self.bn2 = nn.BatchNorm1d(500, affine=False, eps=1e-6, momentum=0.5)
+        self.fc3 = LinearWeightNorm(500, output_dim, weight_scale=1)
         self.bn1_b = Parameter(torch.zeros(500))
         self.bn2_b = Parameter(torch.zeros(500))
         nn.init.xavier_uniform_(self.fc1.weight)
         nn.init.xavier_uniform_(self.fc2.weight)
-        #reset_normal_param(self.fc1, 0.1)
-        #reset_normal_param(self.fc2, 0.1)
-        #reset_normal_param(self.fc3, 0.1)
-    def forward(self, batch_size, cuda = False):
-        x = Variable(torch.rand(batch_size, self.z_dim), requires_grad = False, volatile = not self.training)
+        # reset_normal_param(self.fc1, 0.1)
+        # reset_normal_param(self.fc2, 0.1)
+        # reset_normal_param(self.fc3, 0.1)
+
+    def forward(self, batch_size, cuda=False):
+        x = Variable(torch.rand(batch_size, self.z_dim), requires_grad=False, volatile=not self.training)
         if cuda:
             x = x.cuda()
         x = F.softplus(self.bn1(self.fc1(x)) + self.bn1_b)
