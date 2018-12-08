@@ -26,7 +26,7 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
 parser.add_argument('--num_classes', type=int, default=10, help='number of classes for dataset')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
-parser.add_argument('--channels', type=int, default=3, help='number of image channels')
+parser.add_argument('--channels', type=int, default=1, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=400, help='interval between image sampling')
 opt = parser.parse_args()
 print(opt)
@@ -78,7 +78,7 @@ class Discriminator(nn.Module):
             """Returns layers of each discriminator block"""
             block = [   nn.Conv2d(in_filters, out_filters, 3, 2, 1),
                         nn.LeakyReLU(0.2, inplace=True),
-                        nn.Dropout2d(0.25)]
+                        nn.Dropout2d(0.5)]
             if bn:
                 block.append(nn.BatchNorm2d(out_filters, 0.8))
             return block
@@ -97,7 +97,7 @@ class Discriminator(nn.Module):
         self.adv_layer = nn.Sequential( nn.Linear(128*ds_size**2, 1),
                                         nn.Sigmoid())
         self.aux_layer = nn.Sequential( nn.Linear(128*ds_size**2, opt.num_classes+1),
-                                        nn.Softmax())
+                                            nn.Softmax())
 
     def forward(self, img):
         out = self.conv_blocks(img)
